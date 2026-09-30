@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  BookOpen, 
-  Award, 
-  Trophy, 
-  Lock, 
-  Unlock, 
-  CheckCircle2, 
-  PlayCircle, 
-  Sparkles, 
-  ExternalLink, 
-  Download, 
-  ArrowLeft, 
-  Code, 
-  Briefcase, 
-  BarChart3, 
-  Atom, 
+import {
+  BookOpen,
+  Award,
+  Trophy,
+  Lock,
+  Unlock,
+  CheckCircle2,
+  PlayCircle,
+  Sparkles,
+  ExternalLink,
+  Download,
+  ArrowLeft,
+  Code,
+  Briefcase,
+  BarChart3,
+  Atom,
   Plane,
   Upload
 } from 'lucide-react';
@@ -23,15 +23,15 @@ import type { TrackKey } from '../types';
 import { ContributeModal } from '../components/ContributeModal';
 
 export const StudyArenaPage: React.FC = () => {
-  const { 
-    setActivePath, 
-    tracks, 
-    badges, 
-    leaderboard, 
+  const {
+    setActivePath,
+    tracks,
+    badges,
+    leaderboard,
     contributions,
-    activeArenaTab, 
-    setActiveArenaTab, 
-    selectedTrackKey, 
+    activeArenaTab,
+    setActiveArenaTab,
+    selectedTrackKey,
     setSelectedTrackKey,
     toggleVideoCompleted
   } = useApp();
@@ -110,11 +110,10 @@ export const StudyArenaPage: React.FC = () => {
               {/* 1. Lectures */}
               <button
                 onClick={() => setActiveArenaTab('lectures')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
-                  activeArenaTab === 'lectures'
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'lectures'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <BookOpen className="w-4 h-4" />
                 <span>1. Lectures</span>
@@ -123,11 +122,10 @@ export const StudyArenaPage: React.FC = () => {
               {/* 2. Achievements */}
               <button
                 onClick={() => setActiveArenaTab('achievements')}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
-                  activeArenaTab === 'achievements'
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'achievements'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Award className="w-4 h-4" />
@@ -141,11 +139,10 @@ export const StudyArenaPage: React.FC = () => {
               {/* 3. Leaderboard */}
               <button
                 onClick={() => setActiveArenaTab('leaderboard')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${
-                  activeArenaTab === 'leaderboard'
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'leaderboard'
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 <Trophy className="w-4 h-4" />
                 <span>3. Leaderboard</span>
@@ -169,11 +166,10 @@ export const StudyArenaPage: React.FC = () => {
                     <button
                       key={t.id}
                       onClick={() => setSelectedTrackKey(t.key)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all ${
-                        isSelected
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all ${isSelected
                           ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
                           : 'text-slate-600 hover:bg-slate-50 font-medium'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2 truncate">
                         <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${t.isLocked ? 'text-slate-400' : 'text-blue-600'}`} />
@@ -210,13 +206,12 @@ export const StudyArenaPage: React.FC = () => {
                     <button
                       key={t.id}
                       onClick={() => setSelectedTrackKey(t.key)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
-                        isSelected
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${isSelected
                           ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                           : t.isLocked
-                          ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-                      }`}
+                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                        }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span>{t.title}</span>
@@ -275,7 +270,7 @@ export const StudyArenaPage: React.FC = () => {
 
                     {/* Progress Bar Track */}
                     <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
                         style={{ width: `${progressPercent}%` }}
                       />
@@ -313,11 +308,10 @@ export const StudyArenaPage: React.FC = () => {
 
                         <button
                           onClick={() => toggleVideoCompleted(activeVideo.id)}
-                          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                            activeVideo.completed
+                          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeVideo.completed
                               ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                               : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
+                            }`}
                         >
                           <CheckCircle2 className="w-4 h-4" />
                           <span>{activeVideo.completed ? 'Completed ✓' : 'Mark Completed'}</span>
@@ -352,11 +346,10 @@ export const StudyArenaPage: React.FC = () => {
                             <div
                               key={v.id}
                               onClick={() => setActiveVideoId(v.id)}
-                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-                                isCurrent
+                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isCurrent
                                   ? 'bg-blue-50 border-blue-300 shadow-2xs'
                                   : 'bg-slate-50/70 border-slate-100 hover:bg-slate-100'
-                              }`}
+                                }`}
                             >
                               <div className="flex items-center gap-2.5 truncate pr-2">
                                 <PlayCircle className={`w-4 h-4 flex-shrink-0 ${isCurrent ? 'text-blue-600' : 'text-slate-400'}`} />
@@ -388,7 +381,7 @@ export const StudyArenaPage: React.FC = () => {
                           OPEN PROJECTS & RESEARCH HUB
                         </span>
                         <h3 className="text-xl font-extrabold text-white">
-                          Aeronautics & Open Research Contributions
+                          Open Research Contributions
                         </h3>
                         <p className="text-xs text-blue-200 mt-1">
                           Share your research ideas, submit PDF papers, or contribute code openly to the society.
@@ -448,23 +441,20 @@ export const StudyArenaPage: React.FC = () => {
                 {badges.map(b => (
                   <div
                     key={b.id}
-                    className={`rounded-3xl border p-6 space-y-4 transition-all flex flex-col justify-between ${
-                      b.isUnlocked
+                    className={`rounded-3xl border p-6 space-y-4 transition-all flex flex-col justify-between ${b.isUnlocked
                         ? 'bg-gradient-to-br from-white via-blue-50/50 to-indigo-50/40 border-blue-200 shadow-md'
                         : 'bg-slate-50 border-slate-200 opacity-70'
-                    }`}
+                      }`}
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className={`p-3 rounded-2xl border ${
-                          b.isUnlocked ? 'bg-blue-600 text-white border-blue-500 shadow-md' : 'bg-slate-200 text-slate-500'
-                        }`}>
+                        <div className={`p-3 rounded-2xl border ${b.isUnlocked ? 'bg-blue-600 text-white border-blue-500 shadow-md' : 'bg-slate-200 text-slate-500'
+                          }`}>
                           <Award className="w-6 h-6" />
                         </div>
 
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                          b.isUnlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${b.isUnlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                          }`}>
                           {b.isUnlocked ? 'UNLOCKED BADGE' : 'LOCKED'}
                         </span>
                       </div>
@@ -534,9 +524,8 @@ export const StudyArenaPage: React.FC = () => {
                       {leaderboard.map(item => (
                         <tr
                           key={item.rank}
-                          className={`hover:bg-blue-50/50 transition-colors ${
-                            item.isCurrentUser ? 'bg-blue-50/80 font-bold border-l-4 border-blue-600' : ''
-                          }`}
+                          className={`hover:bg-blue-50/50 transition-colors ${item.isCurrentUser ? 'bg-blue-50/80 font-bold border-l-4 border-blue-600' : ''
+                            }`}
                         >
                           <td className="py-4 px-4 font-black text-sm">
                             {item.rank === 1 && '🥇 #1'}
