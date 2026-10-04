@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
-import { Ticket, Calendar, MapPin, ArrowRight, LayoutGrid, ListFilter, Trash2, Download } from 'lucide-react';
+import { Ticket, Calendar, MapPin, ArrowRight, LayoutGrid, ListFilter, Trash2, Download, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { UI_COPY } from '../constants/uiCopy';
 
 export const MyRegistrationsPage: React.FC = () => {
   const { registrations, cancelRegistration, setActivePath } = useApp();
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+
+  const handleDownloadPass = (eventTitle: string) => {
+    setDownloadNotice(UI_COPY.registrations.downloadingPass(eventTitle));
+    setTimeout(() => setDownloadNotice(null), 3000);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -55,6 +62,13 @@ export const MyRegistrationsPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {downloadNotice && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{downloadNotice}</span>
+        </div>
+      )}
 
       {/* REGISTRATION LIST OR EMPTY STATE */}
       {registrations.length > 0 ? (
@@ -108,7 +122,7 @@ export const MyRegistrationsPage: React.FC = () => {
 
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   <button 
-                    onClick={() => alert(`Downloading QR e-Pass for ${reg.eventTitle}...`)}
+                    onClick={() => handleDownloadPass(reg.eventTitle)}
                     className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700"
                   >
                     <Download className="w-3.5 h-3.5" />

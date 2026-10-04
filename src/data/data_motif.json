@@ -1,0 +1,300 @@
+{
+  "arena": {
+    "id": "motif-study-arena",
+    "name": "MOTIF STUDY ARENA",
+    "eyebrow": "NIT Bhopal Materials Science Society",
+    "description": "Interactive Lectures, Certifications & Leaderboard",
+    "contributeLabel": "Contribute Open Project"
+  },
+  "playlist": {
+    "url": "https://www.youtube.com/playlist?list=PLxvLUL96MOO4saKDW4nHTCe1cDbDMTR5X",
+    "platform": "youtube"
+  },
+  "tracks": [
+    {
+      "id": "data-science",
+      "number": "01",
+      "title": "Data Science & Python",
+      "subtitle": "CampusX DSMP Track",
+      "description": "Master Python fundamentals, OOP, NumPy, Pandas, Data Wrangling & Visualization",
+      "status": "active",
+      "locked": false,
+      "color": "blue",
+      "playlistUrl": "https://www.youtube.com/playlist?list=PLxvLUL96MOO4saKDW4nHTCe1cDbDMTR5X"
+    },
+    {
+      "id": "electronics-ml",
+      "number": "02",
+      "title": "Machine Learning",
+      "subtitle": "Supervised & Unsupervised ML",
+      "description": "Regression, Classification, Decision Trees, Random Forests, SVMs & Model Evaluation",
+      "status": "active",
+      "locked": true,
+      "color": "indigo",
+      "playlistUrl": "https://www.youtube.com/playlist?list=PLblh5JKOoLUICTaGLRoHQDuF_7q2GfuJF"
+    },
+    {
+      "id": "computer-vision",
+      "number": "03",
+      "title": "Computer Vision",
+      "subtitle": "OpenCV, CNNs & PyTorch",
+      "description": "Image Processing, Convolutional Neural Networks, Object Detection & Segmentation",
+      "status": "active",
+      "locked": true,
+      "color": "cyan",
+      "playlistUrl": "https://www.youtube.com/playlist?list=PLQVvVwA1hQ-f-w7N-sXzC9n1kH3_xUo3a"
+    },
+    {
+      "id": "materials-science",
+      "number": "04",
+      "title": "Advanced Computation",
+      "subtitle": "Atomistic Modelling & Simulation",
+      "description": "Density Functional Theory (DFT), Molecular Dynamics, Microstructures & Crystallography",
+      "status": "active",
+      "locked": true,
+      "color": "emerald",
+      "playlistUrl": "https://youtube.com/playlist?list=PLUDGrMBDVGZlmFW1kbmq9NI2cMs2eCRON&si=1C1DQlHVszCwAuR0"
+    }
+  ],
+  "achievements": [
+    {
+      "id": "python-foundations",
+      "title": "Python Foundations",
+      "description": "Completed the Python Data Science track.",
+      "icon": "code",
+      "required": {
+        "type": "track-completion",
+        "trackId": "data-science"
+      }
+    },
+    {
+      "id": "ml-mastery",
+      "title": "Machine Learning Scholar",
+      "description": "Completed the Machine Learning Basics track.",
+      "icon": "briefcase",
+      "required": {
+        "type": "track-completion",
+        "trackId": "electronics-ml"
+      }
+    },
+    {
+      "id": "cv-expert",
+      "title": "Computer Vision Visionary",
+      "description": "Completed the Computer Vision Deep Learning track.",
+      "icon": "award",
+      "required": {
+        "type": "track-completion",
+        "trackId": "computer-vision"
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "id": "user-1",
+      "rank": 1,
+      "name": "Mayank",
+      "studentId": "23BCS101",
+      "points": 120,
+      "projectsCompleted": 4,
+      "quizScorePercentage": 98,
+      "internPerformance": "EXCELLENT",
+      "avatarLetter": "M",
+      "isCurrentUser": true
+    },
+    {
+      "id": "user-2",
+      "rank": 2,
+      "name": "Aarav",
+      "studentId": "23BME045",
+      "points": 110,
+      "projectsCompleted": 3,
+      "quizScorePercentage": 95,
+      "internPerformance": "VERY GOOD",
+      "avatarLetter": "A",
+      "isCurrentUser": false
+    },
+    {
+      "id": "user-3",
+      "rank": 3,
+      "name": "Priya",
+      "studentId": "23BEE092",
+      "points": 90,
+      "projectsCompleted": 2,
+      "quizScorePercentage": 92,
+      "internPerformance": "GOOD",
+      "avatarLetter": "P",
+      "isCurrentUser": false
+    },
+    {
+      "id": "user-4",
+      "rank": 4,
+      "name": "Rahul",
+      "studentId": "23BCE033",
+      "points": 80,
+      "projectsCompleted": 1,
+      "quizScorePercentage": 85,
+      "internPerformance": "GOOD",
+      "avatarLetter": "R",
+      "isCurrentUser": false
+    }
+  ],
+  "openProjects": [
+    {
+      "id": "microstructure-classifier",
+      "title": "Microstructure Classifier",
+      "domain": "Computer Vision · Materials",
+      "difficulty": "Intermediate",
+      "status": "open",
+      "maxContributors": 10,
+      "deadline": "2026-10-30",
+      "submissionTypes": [
+        "idea_proposal",
+        "text_file",
+        "github_repo"
+      ],
+      "contributors": [
+        { "name": "Mayank Saini", "role": "Lead Maintainer", "joinedAt": "2026-09-01", "avatarLetter": "M" },
+        { "name": "Aarav Sharma", "role": "ML Engineer", "joinedAt": "2026-09-05", "avatarLetter": "A" },
+        { "name": "Priya Patel", "role": "Data Curator", "joinedAt": "2026-09-12", "avatarLetter": "P" },
+        { "name": "Rahul Verma", "role": "Researcher", "joinedAt": "2026-09-20", "avatarLetter": "R" }
+      ],
+      "technologies": [
+        "Python",
+        "PyTorch",
+        "OpenCV"
+      ],
+      "description": "A computer vision model to classify different types of material microstructures.",
+      "longDescription": "Build and evaluate deep convolutional neural networks to automatically identify grain boundaries, phases, and defect distributions in SEM/TEM metallographic images. This open project aims to accelerate automated microstructure characterization for materials research.",
+      "goals": [
+        "Curate and benchmark 1,000+ labeled metallographic microstructure images",
+        "Train ResNet-50 and Vision Transformer baselines with >92% classification accuracy",
+        "Export lightweight ONNX models for web and edge device deployment"
+      ],
+      "requirements": [
+        "Familiarity with PyTorch or TensorFlow for image classification models",
+        "Basic understanding of optical/SEM metallographic image processing using OpenCV",
+        "Standard GitHub collaboration workflow (forking, branching, pull requests)"
+      ],
+      "resourceLinks": [
+        { "label": "Dataset Repository", "url": "https://github.com/amorphous-society/microstructure-dataset" },
+        { "label": "Research Paper Draft", "url": "https://arxiv.org" }
+      ],
+      "repositoryUrl": "https://github.com/amorphous-society/microstructure-classifier",
+      "contributeUrl": "#"
+    },
+    {
+      "id": "crystal-defect-simulator",
+      "title": "Crystal Lattice Defect Simulator",
+      "domain": "Atomistic Modeling",
+      "difficulty": "Advanced",
+      "status": "open",
+      "maxContributors": 5,
+      "deadline": "2026-11-15",
+      "submissionTypes": [
+        "idea_proposal",
+        "github_repo"
+      ],
+      "contributors": [
+        { "name": "Dr. Smith", "role": "Faculty Advisor", "joinedAt": "2026-08-15", "avatarLetter": "S" },
+        { "name": "Mayank Saini", "role": "Simulation Lead", "joinedAt": "2026-08-20", "avatarLetter": "M" },
+        { "name": "Ananya Roy", "role": "Quantum Modeling", "joinedAt": "2026-08-22", "avatarLetter": "A" },
+        { "name": "Devansh Gupta", "role": "Code Reviewer", "joinedAt": "2026-08-25", "avatarLetter": "D" },
+        { "name": "Vikram Singh", "role": "Tester", "joinedAt": "2026-08-28", "avatarLetter": "V" }
+      ],
+      "technologies": [
+        "Python",
+        "LAMMPS",
+        "ASE"
+      ],
+      "description": "Simulating point defects, vacancies, and dislocation loops in high-entropy alloys.",
+      "longDescription": "Perform atomistic Molecular Dynamics simulations using LAMMPS and Atomic Simulation Environment (ASE) to calculate vacancy formation energies and dislocation migration barriers in multicomponent alloys.",
+      "goals": [
+        "Simulate NPT thermal relaxation across 5 alloy compositions",
+        "Calculate vacancy formation energies with EAM potentials"
+      ],
+      "requirements": [
+        "Experience running LAMMPS scripts or Quantum ESPRESSO",
+        "Python scripting for ASE structure manipulation"
+      ],
+      "repositoryUrl": "https://github.com/amorphous-society/crystal-defect-sim",
+      "contributeUrl": "#"
+    },
+    {
+      "id": "hea-phase-predictor",
+      "title": "High-Entropy Alloy Phase Predictor",
+      "domain": "Machine Learning · Thermodynamics",
+      "difficulty": "Beginner Friendly",
+      "status": "coming_soon",
+      "maxContributors": 8,
+      "deadline": "2026-12-01",
+      "submissionTypes": [
+        "idea_proposal"
+      ],
+      "contributors": [],
+      "technologies": [
+        "Python",
+        "Scikit-Learn",
+        "Streamlit"
+      ],
+      "description": "Predict single-phase solid solution formation in HEAs using thermodynamic descriptors.",
+      "longDescription": "Developing an interactive web application that predicts solid-solution vs intermetallic phase formation in multi-principal element alloys based on valence electron concentration, mixing enthalpy, and atomic size mismatch.",
+      "goals": [
+        "Implement CALPHAD thermodynamic feature extraction",
+        "Build clean Streamlit web dashboard for real-time phase prediction"
+      ],
+      "requirements": [
+        "Basic Python programming",
+        "Interest in materials thermodynamics"
+      ],
+      "repositoryUrl": "https://github.com/amorphous-society/hea-phase-predictor",
+      "contributeUrl": "#"
+    },
+    {
+      "id": "phase-diagram-calc",
+      "title": "Thermodynamic Phase Diagram Calculator",
+      "domain": "Thermodynamics",
+      "difficulty": "Intermediate",
+      "status": "closed",
+      "maxContributors": 4,
+      "deadline": "2026-09-01",
+      "submissionTypes": [
+        "text_file",
+        "github_repo"
+      ],
+      "contributors": [
+        { "name": "Karan Kumar", "role": "Contributor", "joinedAt": "2026-07-01", "avatarLetter": "K" },
+        { "name": "Neha Joshi", "role": "Contributor", "joinedAt": "2026-07-10", "avatarLetter": "N" },
+        { "name": "Siddharth Rao", "role": "Contributor", "joinedAt": "2026-07-15", "avatarLetter": "S" }
+      ],
+      "technologies": [
+        "Python",
+        "Matplotlib",
+        "SciPy"
+      ],
+      "description": "Algorithmic generation of binary phase diagrams from Gibbs free energy models.",
+      "longDescription": "Generates equilibrium binary phase diagrams using common tangent construction on regular solution Gibbs free energy curves.",
+      "goals": [
+        "Binary phase boundary calculations complete"
+      ],
+      "requirements": [
+        "Thermodynamic modeling background"
+      ],
+      "repositoryUrl": "https://github.com/amorphous-society/phase-diagram-calculator",
+      "contributeUrl": "#"
+    }
+  ],
+  "events": [
+    {
+      "id": "computational-materials-talk",
+      "title": "Computational Materials",
+      "type": "Research Talk",
+      "date": "2026-10-17",
+      "time": "18:00",
+      "location": "MANIT Bhopal",
+      "speaker": "Dr. Smith",
+      "description": "A talk on the future of computational materials.",
+      "registrationUrl": "#",
+      "status": "upcoming"
+    }
+  ]
+}

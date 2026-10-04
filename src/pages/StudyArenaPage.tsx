@@ -1,185 +1,423 @@
-import React, { useState } from 'react';
-import {
-  BookOpen,
-  Award,
-  Trophy,
-  Lock,
-  Unlock,
-  CheckCircle2,
-  PlayCircle,
-  Sparkles,
-  ExternalLink,
-  Download,
-  ArrowLeft,
-  Code,
-  Briefcase,
-  BarChart3,
-  Atom,
-  Plane,
-  Upload
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  BookOpen, Award, Trophy, Lock, CheckCircle2, HelpCircle,
+  Sparkles, ArrowLeft, Upload, Calendar, 
+  Clock, Code, Briefcase, BarChart3, Atom, Plane, Loader2,
+  AlertCircle, Play, X, Check, Search, ListFilter, ChevronDown
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import type { TrackKey } from '../types';
+import motifDataRaw from '../data/data_motif.json';
+import type { MotifData, MotifTrack } from '../types/MotifTypes';
 import { ContributeModal } from '../components/ContributeModal';
+import { usePlaylistData } from '../hooks/usePlaylistData';
+import { getQuizForCheckpoint } from '../data/quizData';
+import type { QuizQuestion, QuizResult } from '../data/quizData';
+import { UI_COPY } from '../constants/uiCopy';
+import { ProjectCard } from '../components/projects/ProjectCard';
+import { ProjectModal } from '../components/projects/ProjectModal';
+import { SubmissionFormModal } from '../components/projects/SubmissionFormModal';
+import { getUserSubmittedProjectIds } from '../services/projectService';
+import type { MotifOpenProject } from '../types/MotifTypes';
+
+const motifData = motifDataRaw as MotifData;
+
+// --- Full Screen Quiz Component ---
+const MotifQuizOverlay: React.FC<{
+  quiz: QuizQuestion;
+  quizNumber: number;
+  onComplete: (result: QuizResult) => void;
+  onSkip: () => void;
+}> = ({ quiz, quizNumber, onComplete, onSkip }) => {
+  const [selected, setSelected] = useState<number | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const isCorrect = selected === quiz.correctIndex;
+
+  const handleSubmit = () => {
+    if (selected === null) return;
+    setSubmitted(true);
+    setTimeout(() => {
+      onComplete({
+        questionId: quiz.id,
+        selectedIndex: selected,
+        isCorrect: selected === quiz.correctIndex,
+        pointsEarned: selected === quiz.correctIndex ? quiz.points : 0,
+      });
+    }, 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8">
+      <div className="max-w-2xl w-full bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 rounded-[2rem] p-6 sm:p-10 text-white shadow-2xl shadow-indigo-900/50 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 p-6 opacity-[0.06]">
+          <HelpCircle className="w-56 h-56" />
+        </div>
+        <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full -ml-16 -mb-16"></div>
+        
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-full border border-white/20">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span className="text-xs font-black uppercase tracking-widest text-indigo-100">
+                MOTIF Quiz {String(quizNumber + 1).padStart(2, '0')}
+              </span>
+            </div>
+            <button onClick={onSkip} className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
+              <X className="w-5 h-5 text-white/60" />
+            </button>
+          </div>
+
+          {/* Question */}
+          <h2 className="text-2xl sm:text-3xl font-black leading-tight mb-8">
+            {quiz.question}
+          </h2>
+
+          {/* Options */}
+          <div className="space-y-3">
+            {quiz.options.map((opt, i) => {
+              let borderColor = 'border-white/15';
+              let bgColor = 'bg-white/5 hover:bg-white/15';
+              
+              if (submitted) {
+                if (i === quiz.correctIndex) {
+                  borderColor = 'border-emerald-400';
+                  bgColor = 'bg-emerald-500/30';
+                } else if (i === selected && !isCorrect) {
+                  borderColor = 'border-red-400';
+                  bgColor = 'bg-red-500/30';
+                }
+              } else if (selected === i) {
+                borderColor = 'border-white';
+                bgColor = 'bg-white/20';
+              }
+
+              return (
+                <button
+                  key={i}
+                  disabled={submitted}
+                  onClick={() => setSelected(i)}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center justify-between font-bold text-sm ${borderColor} ${bgColor}`}
+                >
+                  <span className="flex items-center gap-3">
+                    <span className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center font-black text-xs">
+                      {String.fromCharCode(65 + i)}
+                    </span>
+                    {opt}
+                  </span>
+                  {submitted && i === quiz.correctIndex && (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-300 flex-shrink-0" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Result explanation */}
+          {submitted && (
+            <div className={`mt-6 p-4 rounded-xl border ${
+              isCorrect ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-100' : 'bg-red-500/20 border-red-400/40 text-red-100'
+            }`}>
+              <p className="font-extrabold text-sm flex items-center gap-2">
+                {isCorrect ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    Correct! +{quiz.points} points awarded.
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4 text-red-300" />
+                    Incorrect. Better luck on the next try!
+                  </>
+                )}
+              </p>
+              <p className="text-xs font-semibold text-white/70 mt-1">{quiz.explanation}</p>
+            </div>
+          )}
+
+          {/* Actions */}
+          {!submitted && (
+            <div className="mt-8 flex justify-between items-center">
+              <span className="text-indigo-200 font-bold text-sm">
+                Answer correctly to earn +{quiz.points} points
+              </span>
+              <button 
+                disabled={selected === null}
+                onClick={handleSubmit}
+                className={`px-6 py-2.5 rounded-xl font-black text-sm transition-all ${
+                  selected !== null
+                    ? 'bg-white text-indigo-600 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-95'
+                    : 'bg-white/20 text-white/40 cursor-not-allowed'
+                }`}
+              >
+                Submit Answer
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// =================== MAIN COMPONENT ===================
 
 export const StudyArenaPage: React.FC = () => {
   const {
     setActivePath,
-    tracks,
-    badges,
-    leaderboard,
-    contributions,
     activeArenaTab,
     setActiveArenaTab,
     selectedTrackKey,
     setSelectedTrackKey,
-    toggleVideoCompleted
+    completedLessons,
+    toggleLessonCompleted,
   } = useApp();
 
-  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
-  const [isContributeOpen, setIsContributeOpen] = useState<boolean>(false);
+  const [isContributeOpen, setIsContributeOpen] = useState(false);
+  const [activeLessonIndex, setActiveLessonIndex] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [visibleLimit, setVisibleLimit] = useState(15);
+  const [showAll, setShowAll] = useState(false);
+  
+  // Quiz state
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [activeQuizNumber, setActiveQuizNumber] = useState(0);
+  const [quizScoreTotal, setQuizScoreTotal] = useState(0);
 
-  const currentTrack = tracks.find(t => t.key === selectedTrackKey) || tracks[0];
-  const activeVideo = currentTrack.videos.find(v => v.id === activeVideoId) || currentTrack.videos[0];
+  // Open Projects state
+  const [selectedProjectForDetails, setSelectedProjectForDetails] = useState<MotifOpenProject | null>(null);
+  const [selectedProjectForSubmission, setSelectedProjectForSubmission] = useState<MotifOpenProject | null>(null);
+  const [isSubmissionModalOpen, setIsSubmissionModalOpen] = useState(false);
+  const [submittedProjectIds, setSubmittedProjectIds] = useState<string[]>([]);
 
-  // Calculate lecture progress
-  const completedVideosCount = currentTrack.videos.filter(v => v.completed).length;
-  const progressPercent = Math.round((completedVideosCount / currentTrack.videos.length) * 100);
+  useEffect(() => {
+    setSubmittedProjectIds(getUserSubmittedProjectIds());
+  }, []);
 
-  const getTrackIcon = (key: TrackKey) => {
-    switch (key) {
-      case 'python': return Code;
-      case 'ml': return Briefcase;
-      case 'cv': return BarChart3;
-      case 'materials': return Atom;
-      case 'aero': return Plane;
-      default: return BookOpen;
-    }
+  const handleSubmissionSuccess = (_projectId?: string) => {
+    setSubmittedProjectIds(getUserSubmittedProjectIds());
   };
 
+  // Tracks & Current Track selection
+  const tracks = motifData.tracks;
+  const currentTrack = tracks.find(t => t.id === selectedTrackKey) || tracks[0];
+  const currentPlaylistUrl = currentTrack.playlistUrl || motifData.playlist.url;
+
+  // Reset lesson index & search on track change
+  useEffect(() => {
+    setActiveLessonIndex(0);
+    setSearchQuery('');
+    setVisibleLimit(15);
+    setShowAll(false);
+  }, [selectedTrackKey]);
+
+  // Playlist hook — DYNAMIC PER TRACK & SINGLE SOURCE OF TRUTH IN JSON
+  const { lectures, playlistId, isLoading, error } = usePlaylistData(currentPlaylistUrl, currentTrack.customLessons);
+
+  // Anti-cheat / keyboard controls
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => e.preventDefault();
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || 
+        (e.ctrlKey && e.key === 'U')
+      ) {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const totalLectures = lectures.length;
+  const completedCount = lectures.filter(l => completedLessons.includes(l.id)).length;
+  const progressPercent = totalLectures === 0 ? 0 : Math.round((completedCount / totalLectures) * 100);
+
+  const isTrackLocked = (track: MotifTrack) => {
+    return track.locked;
+  };
+
+  const currentTrackLocked = isTrackLocked(currentTrack);
+
+  const getTrackIcon = (id: string) => {
+    if (id.includes('python') || id.includes('data')) return Code;
+    if (id.includes('ml') || id.includes('electronics')) return Briefcase;
+    if (id.includes('cv') || id.includes('vision')) return BarChart3;
+    if (id.includes('materials')) return Atom;
+    if (id.includes('aero')) return Plane;
+    return BookOpen;
+  };
+
+  const getBadgeIcon = (iconStr: string) => {
+    if (iconStr === 'code') return Code;
+    if (iconStr === 'briefcase') return Briefcase;
+    return Award;
+  };
+
+  // Quiz helpers
+  const getQuizIdForIndex = useCallback((quizIndex: number) => {
+    return `${currentTrack.id}-quiz-${quizIndex}`;
+  }, [currentTrack.id]);
+  
+  const isQuizPassed = useCallback((quizIndex: number) => {
+    return completedLessons.includes(getQuizIdForIndex(quizIndex));
+  }, [completedLessons, getQuizIdForIndex]);
+
+  const isLectureLocked = useCallback((lectureIndex: number) => {
+    for (let q = 0; q < lectureIndex; q++) {
+      if ((q + 1) % 5 === 0) {
+        const quizIdx = Math.floor(q / 5);
+        if (!isQuizPassed(quizIdx)) return true;
+      }
+    }
+    return false;
+  }, [isQuizPassed]);
+
+  const handleQuizComplete = (result: QuizResult) => {
+    if (result.isCorrect) {
+      setQuizScoreTotal(prev => prev + result.pointsEarned);
+      const quizId = getQuizIdForIndex(activeQuizNumber);
+      if (!completedLessons.includes(quizId)) {
+        toggleLessonCompleted(quizId);
+      }
+    }
+    setShowQuiz(false);
+  };
+
+  // Build interleaved lecture + quiz list for the sidebar
+  const buildNavigationItems = useCallback(() => {
+    const items: Array<
+      | { type: 'lecture'; index: number; lecture: typeof lectures[0] }
+      | { type: 'quiz'; quizNumber: number; afterIndex: number }
+    > = [];
+
+    const query = searchQuery.trim().toLowerCase();
+
+    lectures.forEach((lecture, index) => {
+      const matchesSearch = !query || 
+        lecture.title.toLowerCase().includes(query) || 
+        String(index + 1).includes(query);
+
+      if (matchesSearch) {
+        items.push({ type: 'lecture', index, lecture });
+      }
+
+      if ((index + 1) % 5 === 0 && !query) {
+        items.push({ type: 'quiz', quizNumber: Math.floor(index / 5), afterIndex: index });
+      }
+    });
+
+    return items;
+  }, [lectures, searchQuery]);
+
+  const navItems = buildNavigationItems();
+  const displayedNavItems = searchQuery
+    ? navItems
+    : showAll
+      ? navItems
+      : navItems.slice(0, visibleLimit);
+
+  const hasMore = !searchQuery && !showAll && visibleLimit < navItems.length;
+
+  // Current playing video ID
+  const currentVideoId = lectures[activeLessonIndex]?.videoId || null;
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 min-h-[calc(100vh-6rem)]">
-
-      {/* TOP ARENA HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-950 p-6 rounded-3xl text-white shadow-xl border border-blue-800/60">
-        <div className="space-y-1">
-          <button
-            onClick={() => setActivePath('/profile')}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-white transition-colors mb-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Profile</span>
-          </button>
-
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-blue-600/30 border border-blue-400/30 text-cyan-300 shadow-inner">
-              <Sparkles className="w-6 h-6 animate-pulse" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                MOTIF STUDY ARENA
-              </h1>
-              <p className="text-xs text-blue-200 font-medium">
-                NIT Bhopal Materials Science Society • Interactive Lectures, Certifications & Leaderboard
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Contribution Button */}
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500 min-h-[calc(100vh-6rem)]">
+      
+      {/* MINIMAL TOP BAR - BACK ICON ONLY */}
+      <div className="flex items-center justify-between pt-1">
         <button
-          onClick={() => setIsContributeOpen(true)}
-          className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center gap-2 self-start md:self-auto"
+          onClick={() => setActivePath('/profile')}
+          className="p-2.5 rounded-xl bg-white border border-slate-200/80 text-slate-600 hover:text-blue-600 hover:bg-blue-50/80 hover:border-blue-200 shadow-xs transition-all flex items-center gap-2 font-bold text-xs group"
+          title="Back to Profile"
         >
-          <Upload className="w-4 h-4" />
-          <span>Contribute Open Project</span>
+          <ArrowLeft className="w-4 h-4 text-blue-600 transition-transform group-hover:-translate-x-1" />
+          <span className="font-extrabold text-[#102A5C]">Back to Profile</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setSelectedProjectForSubmission(null);
+            setIsSubmissionModalOpen(true);
+          }}
+          className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-bold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 active:scale-95"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span>{UI_COPY.projects.contributeNow}</span>
         </button>
       </div>
 
-      {/* TWO COLUMN ARENA LAYOUT */}
+      {/* ARENA LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-        {/* ARENA SIDEBAR (3 MAIN SECTIONS) */}
-        <div className="lg:col-span-1 bg-white rounded-3xl border border-slate-200/80 p-4 space-y-6 shadow-xs flex flex-col justify-between">
+        
+        {/* SIDEBAR */}
+        <div className="lg:col-span-1 bg-white rounded-3xl border border-slate-200/60 p-5 space-y-6 shadow-sm flex flex-col justify-start relative z-10">
           <div className="space-y-4">
-            <h4 className="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase px-2">
-              STUDY ARENA SECTIONS
+            <h4 className="text-[10px] font-black tracking-widest text-slate-400 uppercase px-2">
+              ARENA NAVIGATION
             </h4>
-
-            <nav className="space-y-1.5">
-              {/* 1. Lectures */}
-              <button
-                onClick={() => setActiveArenaTab('lectures')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'lectures'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-50'
+            <nav className="space-y-2">
+              {[
+                { id: 'lectures', label: '1. Course Tracks', icon: BookOpen },
+                { id: 'achievements', label: '2. Achievements', icon: Award },
+                { id: 'leaderboard', label: '3. Leaderboard', icon: Trophy },
+                { id: 'projects', label: '4. Open Projects', icon: Upload },
+                { id: 'events', label: '5. Upcoming Events', icon: Calendar }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveArenaTab(tab.id as any)}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 ${
+                    activeArenaTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30 scale-[1.02]'
+                      : 'text-slate-600 hover:bg-slate-100 hover:scale-[1.01]'
                   }`}
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>1. Lectures</span>
-              </button>
-
-              {/* 2. Achievements */}
-              <button
-                onClick={() => setActiveArenaTab('achievements')}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'achievements'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Award className="w-4 h-4" />
-                  <span>2. Achievements</span>
-                </div>
-                <span className="px-2 py-0.5 text-[9px] rounded-full bg-amber-400 text-slate-900 font-extrabold">
-                  {badges.filter(b => b.isUnlocked).length} Badges
-                </span>
-              </button>
-
-              {/* 3. Leaderboard */}
-              <button
-                onClick={() => setActiveArenaTab('leaderboard')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-xs transition-all ${activeArenaTab === 'leaderboard'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                    : 'text-slate-700 hover:bg-slate-50'
-                  }`}
-              >
-                <Trophy className="w-4 h-4" />
-                <span>3. Leaderboard</span>
-              </button>
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
             </nav>
           </div>
-
-          {/* COURSE TRACK SELECTOR INSIDE SIDEBAR WHEN IN LECTURES TAB */}
+          
           {activeArenaTab === 'lectures' && (
-            <div className="pt-4 border-t border-slate-100 space-y-3">
-              <h5 className="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase px-2">
-                LECTURE TRACKS
+            <div className="pt-6 border-t border-slate-100 space-y-3 animate-in slide-in-from-left-4 duration-500">
+              <h5 className="text-[10px] font-black tracking-widest text-slate-400 uppercase px-2">
+                YOUR TRACKS
               </h5>
-
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {tracks.map(t => {
-                  const Icon = getTrackIcon(t.key);
-                  const isSelected = selectedTrackKey === t.key;
-
+                  const Icon = getTrackIcon(t.id);
+                  const isSelected = selectedTrackKey === t.id;
+                  const locked = isTrackLocked(t);
+                  
                   return (
                     <button
                       key={t.id}
-                      onClick={() => setSelectedTrackKey(t.key)}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left text-xs transition-all ${isSelected
-                          ? 'bg-blue-50 text-blue-700 font-bold border border-blue-200'
-                          : 'text-slate-600 hover:bg-slate-50 font-medium'
-                        }`}
+                      onClick={() => setSelectedTrackKey(t.id)}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl text-left text-xs transition-all duration-300 ${
+                        isSelected
+                          ? 'bg-blue-50/80 text-blue-800 font-extrabold border-2 border-blue-200 shadow-sm transform scale-[1.02]'
+                          : 'text-slate-500 hover:bg-slate-50 font-bold border-2 border-transparent'
+                      }`}
                     >
-                      <div className="flex items-center gap-2 truncate">
-                        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${t.isLocked ? 'text-slate-400' : 'text-blue-600'}`} />
+                      <div className="flex items-center gap-2.5 truncate">
+                        <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                          <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+                        </div>
                         <span className="truncate">{t.title}</span>
                       </div>
-
-                      {t.isLocked ? (
-                        <Lock className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                      {locked ? (
+                        <Lock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       ) : (
-                        <Unlock className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                        <CheckCircle2 className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-emerald-500' : 'text-slate-300'}`} />
                       )}
                     </button>
                   );
@@ -189,230 +427,332 @@ export const StudyArenaPage: React.FC = () => {
           )}
         </div>
 
-        {/* MAIN DISPLAY CONTENT */}
-        <div className="lg:col-span-3 space-y-6">
-
-          {/* TAB 1: LECTURES VIEW */}
+        {/* MAIN CONTENT AREA */}
+        <div className="lg:col-span-3 space-y-6 relative">
+          
+          {/* LECTURES VIEW */}
           {activeArenaTab === 'lectures' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-
-              {/* COURSE TRACK SELECTOR BAR */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {tracks.map(t => {
-                  const Icon = getTrackIcon(t.key);
-                  const isSelected = selectedTrackKey === t.key;
-
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => setSelectedTrackKey(t.key)}
-                      className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${isSelected
-                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                          : t.isLocked
-                            ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
-                        }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{t.title}</span>
-                      {t.isLocked && <Lock className="w-3.5 h-3.5 text-rose-400 ml-1" />}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* LOCKED WARNING BANNER IF SELECTED TRACK IS LOCKED */}
-              {currentTrack.isLocked ? (
-                <div className="bg-rose-50 border border-rose-200 rounded-3xl p-8 text-center space-y-4 shadow-xs">
-                  <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
+              
+              {currentTrackLocked ? (
+                <div className="bg-white border-2 border-slate-100 rounded-3xl p-10 text-center space-y-5 shadow-sm">
+                  <div className="w-20 h-20 rounded-full bg-slate-50 border-4 border-slate-100 text-slate-300 flex items-center justify-center mx-auto shadow-inner">
                     <Lock className="w-8 h-8" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-extrabold text-rose-950">
-                      {currentTrack.title} is Currently Locked!
+                    <h3 className="text-2xl font-black text-slate-800">
+                      {UI_COPY.studyArena.lockedTrackTitle(currentTrack.title)}
                     </h3>
-                    <p className="text-xs font-semibold text-rose-700 mt-1 max-w-md mx-auto">
-                      Prerequisite Required: You must first complete 100% of the lectures in{' '}
-                      <span className="font-bold underline">{currentTrack.prerequisiteTitle}</span> to unlock this module.
+                    <p className="text-sm font-semibold text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+                      {UI_COPY.studyArena.lockedTrackDescription}
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      if (currentTrack.prerequisiteKey) setSelectedTrackKey(currentTrack.prerequisiteKey);
-                    }}
-                    className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs"
-                  >
-                    Go to Prerequisite Module →
-                  </button>
                 </div>
               ) : (
-                /* UNLOCKED LECTURE CONTENT */
                 <div className="space-y-6">
-
-                  {/* PROGRESS BAR SECTION (HOW MUCH OF THE LECTURE HAVE YOU DONE?) */}
-                  <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-blue-600">
-                          MODULE PROGRESS BAR
-                        </span>
-                        <h3 className="text-base font-extrabold text-[#102A5C]">
-                          How much of the lecture have you done?
-                        </h3>
-                      </div>
-                      <div className="text-right">
+                  {/* PROGRESS HEADER */}
+                  <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 transition-all">
+                    <div className="space-y-1 flex-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block mb-1">
+                        TRACK: {currentTrack.title}
+                      </span>
+                      <h3 className="text-xl font-black text-slate-900">
+                        {currentTrack.subtitle || "Track Progress"}
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium">
+                        {currentTrack.description}
+                      </p>
+                    </div>
+                    
+                    <div className="w-full md:w-64 space-y-2">
+                      <div className="flex justify-between items-end">
+                        <span className="text-sm font-black text-slate-700">Completion</span>
                         <span className="text-2xl font-black text-blue-600">{progressPercent}%</span>
-                        <p className="text-[10px] font-bold text-slate-400">
-                          {completedVideosCount} / {currentTrack.videos.length} Videos Done
-                        </p>
                       </div>
-                    </div>
-
-                    {/* Progress Bar Track */}
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
-                      <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-500"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-
-                    <p className="text-xs text-slate-500 font-medium pt-1">
-                      {progressPercent === 100
-                        ? '🎉 Congratulations! You have completed all videos in this module and unlocked dependent tracks & badge!'
-                        : 'Check off completed videos in the list below to update your progress bar.'}
-                    </p>
-                  </div>
-
-                  {/* VIDEO PLAYER & PLAYLIST EMBED */}
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                    {/* Left 2 Cols: Main YouTube Video Player */}
-                    <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 p-5 space-y-4 shadow-xs">
-                      <div className="aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 shadow-md">
-                        <iframe
-                          className="w-full h-full"
-                          src={`https://www.youtube.com/embed/${activeVideo.youtubeId}?autoplay=0`}
-                          title={activeVideo.title}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
+                      <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
+                          style={{ width: `${progressPercent}%` }}
                         />
                       </div>
+                      <p className="text-[10px] font-bold text-slate-400 text-right">
+                        {completedCount} / {totalLectures} Lectures Done
+                      </p>
+                    </div>
+                  </div>
 
-                      <div className="flex items-center justify-between">
+                  {/* LOADING STATE */}
+                  {isLoading && (
+                    <div className="bg-white rounded-3xl border border-slate-200/60 p-16 shadow-sm flex flex-col items-center justify-center gap-4">
+                      <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                      <p className="text-sm font-bold text-slate-500">{UI_COPY.studyArena.loadingCourseContent}</p>
+                    </div>
+                  )}
+
+                  {/* ERROR STATE */}
+                  {!isLoading && error && lectures.length === 0 && (
+                    <div className="space-y-6">
+                      <div className="bg-amber-50 rounded-2xl border border-amber-200 p-5 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                         <div>
-                          <h4 className="text-sm font-extrabold text-[#102A5C]">
-                            {activeVideo.title}
-                          </h4>
-                          <p className="text-xs text-slate-400 font-medium">Duration: {activeVideo.duration}</p>
+                          <p className="text-sm font-bold text-amber-900">{UI_COPY.studyArena.playlistUnavailable}</p>
+                          <p className="text-xs font-medium text-amber-700 mt-1">{UI_COPY.studyArena.embeddedPlayerNotice}</p>
                         </div>
-
-                        <button
-                          onClick={() => toggleVideoCompleted(activeVideo.id)}
-                          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${activeVideo.completed
-                              ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>{activeVideo.completed ? 'Completed ✓' : 'Mark Completed'}</span>
-                        </button>
                       </div>
-
-                      {/* Designated Embed Playlist Link Info */}
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-500 font-medium flex items-center justify-between">
-                        <span>Configured YouTube Playlist Embed ID: <code className="text-blue-600 font-mono font-bold">{currentTrack.youtubeEmbedPlaylistId}</code></span>
-                        <a
-                          href={currentTrack.playlistUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 hover:underline font-bold flex items-center gap-1"
-                        >
-                          <span>Open YouTube Playlist</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* Right 1 Col: Playlist Video Selector */}
-                    <div className="bg-white rounded-3xl border border-slate-200/80 p-5 space-y-3 shadow-xs">
-                      <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                        Course Video Playlist ({currentTrack.videos.length})
-                      </h4>
-
-                      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                        {currentTrack.videos.map(v => {
-                          const isCurrent = v.id === activeVideo.id;
-                          return (
-                            <div
-                              key={v.id}
-                              onClick={() => setActiveVideoId(v.id)}
-                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${isCurrent
-                                  ? 'bg-blue-50 border-blue-300 shadow-2xs'
-                                  : 'bg-slate-50/70 border-slate-100 hover:bg-slate-100'
-                                }`}
-                            >
-                              <div className="flex items-center gap-2.5 truncate pr-2">
-                                <PlayCircle className={`w-4 h-4 flex-shrink-0 ${isCurrent ? 'text-blue-600' : 'text-slate-400'}`} />
-                                <span className={`text-xs truncate ${isCurrent ? 'font-bold text-[#102A5C]' : 'font-medium text-slate-700'}`}>
-                                  {v.title}
-                                </span>
-                              </div>
-
-                              <input
-                                type="checkbox"
-                                checked={v.completed}
-                                onChange={() => toggleVideoCompleted(v.id)}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-4 h-4 text-blue-600 rounded cursor-pointer"
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* OPEN PROJECTS & CONTRIBUTIONS SECTION (Specially for Aeronautics / Open Track) */}
-                  <div className="bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 rounded-3xl p-6 text-white space-y-4 shadow-lg">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <span className="text-[10px] font-extrabold tracking-widest text-cyan-300 uppercase">
-                          OPEN PROJECTS & RESEARCH HUB
-                        </span>
-                        <h3 className="text-xl font-extrabold text-white">
-                          Open Research Contributions
-                        </h3>
-                        <p className="text-xs text-blue-200 mt-1">
-                          Share your research ideas, submit PDF papers, or contribute code openly to the society.
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => setIsContributeOpen(true)}
-                        className="px-5 py-2.5 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-black text-xs rounded-xl shadow-md transition-all self-start sm:self-auto"
-                      >
-                        + Contribute Idea / PDF
-                      </button>
-                    </div>
-
-                    {/* Contributions Feed */}
-                    <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {contributions.map(item => (
-                        <div key={item.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/10 text-xs space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
-                              {item.type}
-                            </span>
-                            <span className="text-[10px] text-slate-300">{item.submittedDate}</span>
+                      {playlistId && (
+                        <div className="bg-white rounded-3xl border border-slate-200/60 overflow-hidden shadow-sm">
+                          <div className="aspect-video w-full bg-slate-900 relative">
+                            <iframe
+                              className="w-full h-full absolute inset-0"
+                              src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&rel=0`}
+                              title="Course Playlist"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
                           </div>
-                          <h4 className="font-bold text-white">{item.title}</h4>
-                          <p className="text-[11px] text-slate-300 line-clamp-2">{item.description}</p>
-                          <p className="text-[10px] font-semibold text-cyan-300 pt-1">By {item.studentName}</p>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
+                  )}
+
+                  {/* MAIN PLAYER + SIDEBAR */}
+                  {!isLoading && lectures.length > 0 && (
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                      
+                      {/* PLAYER SECTION */}
+                      <div className="xl:col-span-2">
+                        <div className="bg-white rounded-3xl border border-slate-200/60 overflow-hidden shadow-sm flex flex-col w-full">
+                          <div className="aspect-video w-full bg-slate-900 relative">
+                            {currentVideoId ? (
+                              <iframe
+                                key={`${selectedTrackKey}-${currentVideoId}`}
+                                className="w-full h-full absolute inset-0"
+                                src={`https://www.youtube.com/embed/${currentVideoId}?rel=0&list=${playlistId}`}
+                                title={lectures[activeLessonIndex]?.title || 'Course Video'}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <iframe
+                                className="w-full h-full absolute inset-0"
+                                src={`https://www.youtube.com/embed/videoseries?list=${playlistId}&rel=0`}
+                                title="Course Playlist"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            )}
+                          </div>
+                          {/* Now Playing info */}
+                          <div className="p-4 border-t border-slate-100">
+                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500 mb-1">
+                              <Play className="w-3 h-3" /> Now Playing ({currentTrack.title})
+                            </div>
+                            <h4 className="text-sm font-black text-slate-800 leading-snug">
+                              {lectures[activeLessonIndex]?.title || 'Select a lecture to play'}
+                            </h4>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* RIGHT SIDEBAR - DYNAMIC LECTURE LIST WITH SEARCH & SHOW ALL */}
+                      <div className="xl:col-span-1">
+                        <div className="bg-white rounded-3xl border border-slate-200/60 p-5 shadow-sm flex flex-col" style={{ height: 'calc(100%)' }}>
+                          <div className="flex items-center justify-between mb-3 px-1">
+                            <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                              Lectures
+                            </h4>
+                            <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">
+                              {totalLectures} videos
+                            </span>
+                          </div>
+
+                          {/* Search Bar for 300+ Videos */}
+                          <div className="relative mb-3">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search lectures by title..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              className="w-full pl-9 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                            />
+                            {searchQuery && (
+                              <button 
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-2 text-xs font-bold text-slate-400 hover:text-slate-600"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto pr-1 space-y-1.5" style={{ maxHeight: '500px' }}>
+                            {displayedNavItems.length === 0 ? (
+                              <div className="p-6 text-center text-xs font-bold text-slate-400">
+                                {UI_COPY.studyArena.noLecturesFound(searchQuery)}
+                              </div>
+                            ) : (
+                              displayedNavItems.map((item) => {
+                                if (item.type === 'lecture') {
+                                  const { lecture, index } = item;
+                                  const isDone = completedLessons.includes(lecture.id);
+                                  const locked = isLectureLocked(index);
+                                  const isActive = activeLessonIndex === index;
+
+                                  return (
+                                    <button
+                                      key={`lec-${index}`}
+                                      disabled={locked}
+                                      onClick={() => { if (!locked) setActiveLessonIndex(index); }}
+                                      className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border relative group ${
+                                        locked
+                                          ? 'bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed'
+                                          : isActive
+                                            ? 'bg-blue-50 border-blue-300 shadow-md ring-1 ring-blue-400/30'
+                                            : isDone
+                                              ? 'bg-emerald-50/50 border-emerald-200/60 hover:border-emerald-300'
+                                              : 'bg-white border-slate-100 hover:border-blue-200 hover:shadow-sm'
+                                      }`}
+                                    >
+                                      {/* Mark complete button */}
+                                      <button
+                                        disabled={locked}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!locked) toggleLessonCompleted(lecture.id);
+                                        }}
+                                        className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                                          locked
+                                            ? 'bg-slate-200 text-slate-400'
+                                            : isDone
+                                              ? 'bg-emerald-500 text-white shadow-sm'
+                                              : 'bg-slate-100 text-slate-300 hover:bg-emerald-100 hover:text-emerald-500'
+                                        }`}
+                                        title={isDone ? 'Completed' : 'Mark as complete'}
+                                      >
+                                        {locked ? <Lock className="w-2.5 h-2.5" /> : <CheckCircle2 className="w-3 h-3" />}
+                                      </button>
+
+                                      <div className="flex-1 min-w-0">
+                                        <div className={`text-[11px] leading-snug truncate ${
+                                          locked ? 'font-medium text-slate-400' :
+                                          isActive ? 'font-black text-blue-900' :
+                                          isDone ? 'font-bold text-emerald-800' :
+                                          'font-bold text-slate-700'
+                                        }`}>
+                                          {/^(session|section|lecture|part|chapter|\d+[\.\-])/i.test(lecture.title.trim()) ? (
+                                            lecture.title
+                                          ) : (
+                                            <>
+                                              <span className="text-slate-400 font-mono mr-1.5">{String(index + 1).padStart(2, '0')}.</span>
+                                              {lecture.title}
+                                            </>
+                                          )}
+                                        </div>
+                                        {lecture.duration && (
+                                          <div className="text-[10px] font-semibold text-slate-400 mt-0.5 flex items-center gap-1">
+                                            <Clock className="w-2.5 h-2.5" />
+                                            {lecture.duration}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {isActive && (
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse mt-2 flex-shrink-0"></div>
+                                      )}
+                                    </button>
+                                  );
+                                }
+
+                                // QUIZ ITEM
+                                if (item.type === 'quiz') {
+                                  const { quizNumber, afterIndex } = item;
+                                  const passed = isQuizPassed(quizNumber);
+                                  const locked = isLectureLocked(afterIndex);
+
+                                  return (
+                                    <div
+                                      key={`quiz-${quizNumber}`}
+                                      className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
+                                        passed
+                                          ? 'bg-emerald-500/10 border-emerald-300 text-emerald-900'
+                                          : locked
+                                            ? 'bg-slate-100 border-slate-200 opacity-60'
+                                            : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md animate-pulse'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5">
+                                        <div className={`p-1.5 rounded-lg ${
+                                          passed ? 'bg-emerald-500 text-white' : locked ? 'bg-slate-200 text-slate-400' : 'bg-white/20 text-white'
+                                        }`}>
+                                          <HelpCircle className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                          <span className="text-xs font-black block">
+                                            Quiz Checkpoint #{quizNumber + 1}
+                                          </span>
+                                          <span className={`text-[10px] font-bold block ${
+                                            passed ? 'text-emerald-700' : locked ? 'text-slate-400' : 'text-indigo-100'
+                                          }`}>
+                                            {passed ? 'Passed (+10 pts)' : locked ? 'Locked (Complete previous lectures)' : 'Required to unlock next lectures'}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                      {!locked && !passed && (
+                                        <button
+                                          onClick={() => {
+                                            setActiveQuizNumber(quizNumber);
+                                            setShowQuiz(true);
+                                          }}
+                                          className="px-3 py-1.5 bg-white text-indigo-700 hover:bg-indigo-50 font-black text-xs rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95"
+                                        >
+                                          Start Quiz
+                                        </button>
+                                      )}
+
+                                      {passed && (
+                                        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                return null;
+                              })
+                            )}
+                          </div>
+
+                          {/* View More / Show All Pagination Controls */}
+                          {!searchQuery && navItems.length > 15 && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                              {hasMore && (
+                                <button
+                                  onClick={() => setVisibleLimit(prev => prev + 15)}
+                                  className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                  <ChevronDown className="w-4 h-4 animate-bounce" />
+                                  <span>{UI_COPY.studyArena.viewMoreLectures(Math.min(visibleLimit, navItems.length), navItems.length)}</span>
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => {
+                                  setShowAll(!showAll);
+                                  if (showAll) setVisibleLimit(15);
+                                }}
+                                className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5"
+                              >
+                                <ListFilter className="w-3.5 h-3.5 text-slate-500" />
+                                <span>{showAll ? UI_COPY.studyArena.collapseLectures : UI_COPY.studyArena.showAllLectures(navItems.length)}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
 
                 </div>
               )}
@@ -420,155 +760,175 @@ export const StudyArenaPage: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: ACHIEVEMENTS & CERTIFICATES VIEW */}
+          {/* ACHIEVEMENTS VIEW */}
           {activeArenaTab === 'achievements' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-2 shadow-xs">
-                <div className="inline-flex items-center gap-2 text-[10px] font-extrabold tracking-widest text-blue-600 uppercase">
-                  <span className="w-3 h-0.5 bg-blue-600" />
-                  <span>BADGES & CERTIFICATIONS</span>
-                </div>
-                <h2 className="text-2xl font-extrabold text-[#102A5C]">
-                  Motif Badges & Verified Certificates
-                </h2>
-                <p className="text-xs text-slate-500 font-medium">
-                  Earn society badges and download official certificates by completing 100% of lecture modules.
-                </p>
-              </div>
+            <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm">
+                <h3 className="text-xl font-black text-slate-900 mb-1">Track Achievements & Badges</h3>
+                <p className="text-xs font-semibold text-slate-500">Earn badges by completing tracks and passing checkpoints.</p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
+                  {motifData.achievements.map(ach => {
+                    const IconComp = getBadgeIcon(ach.icon);
+                    const isUnlocked = completedCount > 0;
 
-              {/* Badges Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {badges.map(b => (
-                  <div
-                    key={b.id}
-                    className={`rounded-3xl border p-6 space-y-4 transition-all flex flex-col justify-between ${b.isUnlocked
-                        ? 'bg-gradient-to-br from-white via-blue-50/50 to-indigo-50/40 border-blue-200 shadow-md'
-                        : 'bg-slate-50 border-slate-200 opacity-70'
-                      }`}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className={`p-3 rounded-2xl border ${b.isUnlocked ? 'bg-blue-600 text-white border-blue-500 shadow-md' : 'bg-slate-200 text-slate-500'
-                          }`}>
-                          <Award className="w-6 h-6" />
+                    return (
+                      <div
+                        key={ach.id}
+                        className={`p-5 rounded-2xl border transition-all flex items-start gap-4 ${
+                          isUnlocked
+                            ? 'bg-gradient-to-br from-blue-50/50 to-indigo-50/50 border-blue-200 shadow-sm'
+                            : 'bg-slate-50 border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <div className={`p-3 rounded-xl ${isUnlocked ? 'bg-blue-600 text-white shadow-md' : 'bg-slate-200 text-slate-400'}`}>
+                          <IconComp className="w-6 h-6" />
                         </div>
-
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${b.isUnlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-800">{ach.title}</h4>
+                          <p className="text-xs font-medium text-slate-500 mt-1 leading-snug">{ach.description}</p>
+                          <span className={`inline-block mt-3 text-[10px] font-black px-2 py-0.5 rounded-md ${
+                            isUnlocked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
                           }`}>
-                          {b.isUnlocked ? 'UNLOCKED BADGE' : 'LOCKED'}
-                        </span>
+                            {isUnlocked ? 'Unlocked' : 'In Progress'}
+                          </span>
+                        </div>
                       </div>
-
-                      <div>
-                        <h3 className="text-base font-extrabold text-[#102A5C]">
-                          {b.title}
-                        </h3>
-                        <p className="text-xs font-medium text-slate-500 mt-1">
-                          {b.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-semibold">
-                        {b.earnedDate ? `Earned on ${b.earnedDate}` : 'Complete 100% videos to unlock'}
-                      </span>
-
-                      {b.isUnlocked && (
-                        <button
-                          onClick={() => alert(`Downloading verified certificate: ${b.certificateUrl}`)}
-                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>Certificate</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 3: LEADERBOARD VIEW */}
+          {/* LEADERBOARD VIEW */}
           {activeArenaTab === 'leaderboard' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 space-y-2 shadow-xs">
-                <div className="inline-flex items-center gap-2 text-[10px] font-extrabold tracking-widest text-blue-600 uppercase">
-                  <span className="w-3 h-0.5 bg-blue-600" />
-                  <span>SOCIETY PERFORMANCE RANKINGS</span>
+            <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900">Live Leaderboard</h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">Real-time rankings based on completed lectures and quiz scores.</p>
+                  </div>
+                  <div className="px-3 py-1.5 bg-blue-50 rounded-xl text-blue-700 text-xs font-black flex items-center gap-1.5">
+                    <Trophy className="w-4 h-4 text-amber-500" /> Your Bonus: +{quizScoreTotal} pts
+                  </div>
                 </div>
-                <h2 className="text-2xl font-extrabold text-[#102A5C]">
-                  Motif Society Leaderboard
-                </h2>
-                <p className="text-xs text-slate-500 font-medium">
-                  Rankings based on open project completion, lecture quizzes, and society intern performance.
-                </p>
-              </div>
 
-              {/* Leaderboard Table */}
-              <div className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase font-extrabold text-[10px] tracking-wider">
-                        <th className="py-3.5 px-4">Rank</th>
-                        <th className="py-3.5 px-4">Student</th>
-                        <th className="py-3.5 px-4 text-center">Points</th>
-                        <th className="py-3.5 px-4 text-center">Projects</th>
-                        <th className="py-3.5 px-4 text-center">Quiz Score</th>
-                        <th className="py-3.5 px-4">Intern Performance</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-semibold text-slate-800">
-                      {leaderboard.map(item => (
-                        <tr
-                          key={item.rank}
-                          className={`hover:bg-blue-50/50 transition-colors ${item.isCurrentUser ? 'bg-blue-50/80 font-bold border-l-4 border-blue-600' : ''
-                            }`}
-                        >
-                          <td className="py-4 px-4 font-black text-sm">
-                            {item.rank === 1 && '🥇 #1'}
-                            {item.rank === 2 && '🥈 #2'}
-                            {item.rank === 3 && '🥉 #3'}
-                            {item.rank > 3 && `#${item.rank}`}
-                          </td>
+                <div className="space-y-3">
+                  {motifData.leaderboard.map(user => {
+                    const effectivePoints = user.isCurrentUser ? user.points + quizScoreTotal : user.points;
 
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-                                {item.avatarLetter}
-                              </div>
-                              <div>
-                                <p className="font-bold text-slate-900">
-                                  {item.name} {item.isCurrentUser && '(You)'}
-                                </p>
-                                <p className="text-[10px] text-slate-400 font-medium">{item.studentId}</p>
-                              </div>
+                    return (
+                      <div
+                        key={user.id}
+                        className={`p-4 rounded-2xl border transition-all flex items-center justify-between ${
+                          user.isCurrentUser
+                            ? 'bg-blue-50/80 border-blue-300 shadow-md ring-1 ring-blue-400/20'
+                            : 'bg-white border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center ${
+                            user.rank === 1 ? 'bg-amber-400 text-amber-950 shadow-md' :
+                            user.rank === 2 ? 'bg-slate-300 text-slate-800' :
+                            user.rank === 3 ? 'bg-amber-600 text-white' :
+                            'bg-slate-100 text-slate-500'
+                          }`}>
+                            #{user.rank}
+                          </div>
+
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-sm flex items-center justify-center shadow-sm">
+                            {user.avatarLetter}
+                          </div>
+
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-extrabold text-sm text-slate-800">{user.name}</h4>
+                              {user.isCurrentUser && (
+                                <span className="text-[9px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full uppercase">You</span>
+                              )}
                             </div>
-                          </td>
+                            <p className="text-[11px] font-semibold text-slate-400">{user.studentId} · {user.internPerformance}</p>
+                          </div>
+                        </div>
 
-                          <td className="py-4 px-4 text-center font-black text-blue-600">
-                            {item.points} pts
-                          </td>
+                        <div className="text-right">
+                          <span className="text-lg font-black text-blue-600 block">{effectivePoints} pts</span>
+                          <span className="text-[10px] font-bold text-slate-400">{user.projectsCompleted} projects · {user.quizScorePercentage}% quiz</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
-                          <td className="py-4 px-4 text-center">
-                            {item.projectsCompleted} Projects
-                          </td>
+          {/* OPEN PROJECTS VIEW */}
+          {activeArenaTab === 'projects' && (
+            <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
+              <div className="bg-slate-900/90 rounded-3xl border border-slate-800 p-6 shadow-xl">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-6 border-b border-slate-800/80">
+                  <div>
+                    <h3 className="text-xl font-bold text-white tracking-tight">Open Source Projects</h3>
+                    <p className="text-xs text-slate-400 mt-1">Contribute code and work on real-world projects with society members.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedProjectForSubmission(null);
+                      setIsSubmissionModalOpen(true);
+                    }}
+                    className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 self-start md:self-auto active:scale-95"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{UI_COPY.projects.contributeNow}</span>
+                  </button>
+                </div>
 
-                          <td className="py-4 px-4 text-center text-emerald-600 font-bold">
-                            {item.quizScorePercentage}%
-                          </td>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {motifData.openProjects.map((proj) => (
+                    <ProjectCard
+                      key={proj.id}
+                      project={proj}
+                      isSubmitted={submittedProjectIds.includes(proj.id)}
+                      onOpenDetails={(p) => setSelectedProjectForDetails(p)}
+                      onOpenSubmission={(p) => {
+                        setSelectedProjectForSubmission(p);
+                        setIsSubmissionModalOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-                          <td className="py-4 px-4">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                              {item.internPerformance}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+          {/* EVENTS VIEW */}
+          {activeArenaTab === 'events' && (
+            <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
+              <div className="bg-white rounded-3xl border border-slate-200/60 p-6 shadow-sm">
+                <h3 className="text-xl font-black text-slate-900 mb-1">Upcoming Events & Workshops</h3>
+                <p className="text-xs font-semibold text-slate-500">Join society research talks, hackathons, and guest lectures.</p>
+
+                <div className="space-y-4 mt-6">
+                  {motifData.events.map(ev => (
+                    <div key={ev.id} className="p-5 rounded-2xl border border-slate-200/80 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                            {ev.type}
+                          </span>
+                          <span className="text-xs font-bold text-slate-400">{ev.date} at {ev.time}</span>
+                        </div>
+                        <h4 className="font-extrabold text-base text-slate-800">{ev.title}</h4>
+                        <p className="text-xs font-medium text-slate-500">{ev.description}</p>
+                      </div>
+                      <button className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 self-start md:self-auto">
+                        Register Now
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -577,11 +937,39 @@ export const StudyArenaPage: React.FC = () => {
         </div>
       </div>
 
-      {/* CONTRIBUTE POPUP MODAL */}
-      <ContributeModal
-        isOpen={isContributeOpen}
-        onClose={() => setIsContributeOpen(false)}
+      {/* FULL SCREEN QUIZ MODAL */}
+      {showQuiz && (
+        <MotifQuizOverlay
+          quiz={getQuizForCheckpoint(currentTrack.id, activeQuizNumber)}
+          quizNumber={activeQuizNumber}
+          onComplete={handleQuizComplete}
+          onSkip={() => setShowQuiz(false)}
+        />
+      )}
+
+      {/* PROJECT DETAILS MODAL */}
+      <ProjectModal
+        project={selectedProjectForDetails}
+        isOpen={!!selectedProjectForDetails}
+        onClose={() => setSelectedProjectForDetails(null)}
+        isSubmitted={selectedProjectForDetails ? submittedProjectIds.includes(selectedProjectForDetails.id) : false}
+        onContribute={(proj) => {
+          setSelectedProjectForSubmission(proj);
+          setIsSubmissionModalOpen(true);
+        }}
       />
+
+      {/* SUBMISSION FORM MODAL */}
+      <SubmissionFormModal
+        projects={motifData.openProjects}
+        initialProject={selectedProjectForSubmission}
+        isOpen={isSubmissionModalOpen}
+        onClose={() => setIsSubmissionModalOpen(false)}
+        onSuccess={handleSubmissionSuccess}
+      />
+
+      {/* CONTRIBUTE MODAL */}
+      <ContributeModal isOpen={isContributeOpen} onClose={() => setIsContributeOpen(false)} />
     </div>
   );
 };

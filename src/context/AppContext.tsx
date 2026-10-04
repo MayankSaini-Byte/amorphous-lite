@@ -6,13 +6,13 @@ import type {
   UserProfile, 
   CategoryType,
   CourseTrack,
-  TrackKey,
   BadgeItem,
   LeaderboardEntry,
   ContributionItem
 } from '../types';
 import { MOCK_EVENTS, INITIAL_USER_REGISTRATIONS, INITIAL_NOTIFICATIONS, INITIAL_USER_PROFILE } from '../data/mockData';
 import { INITIAL_COURSE_TRACKS, INITIAL_BADGES, INITIAL_LEADERBOARD, INITIAL_CONTRIBUTIONS } from '../data/arenaMockData';
+
 
 interface AppContextType {
   activePath: string;
@@ -44,13 +44,14 @@ interface AppContextType {
   badges: BadgeItem[];
   leaderboard: LeaderboardEntry[];
   contributions: ContributionItem[];
-  activeArenaTab: 'lectures' | 'achievements' | 'leaderboard';
-  setActiveArenaTab: (tab: 'lectures' | 'achievements' | 'leaderboard') => void;
-  selectedTrackKey: TrackKey;
-  setSelectedTrackKey: (key: TrackKey) => void;
+  activeArenaTab: 'lectures' | 'achievements' | 'leaderboard' | 'projects' | 'events';
+  setActiveArenaTab: (tab: 'lectures' | 'achievements' | 'leaderboard' | 'projects' | 'events') => void;
+  selectedTrackKey: string;
+  setSelectedTrackKey: (key: string) => void;
   isMotifWarping: boolean;
   openMotifArena: () => void;
-  toggleVideoCompleted: (videoId: string) => void;
+  completedLessons: string[];
+  toggleLessonCompleted: (lessonId: string) => void;
   addContribution: (item: Omit<ContributionItem, 'id' | 'submittedDate' | 'status'>) => void;
 }
 
@@ -71,14 +72,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [searchModalOpen, setSearchModalOpen] = useState<boolean>(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // Study Arena (Motif) State
-  const [tracks, setTracks] = useState<CourseTrack[]>(INITIAL_COURSE_TRACKS);
-  const [badges, setBadges] = useState<BadgeItem[]>(INITIAL_BADGES);
+  const [tracks] = useState<CourseTrack[]>(INITIAL_COURSE_TRACKS);
+  const [badges] = useState<BadgeItem[]>(INITIAL_BADGES);
   const [leaderboard] = useState<LeaderboardEntry[]>(INITIAL_LEADERBOARD);
   const [contributions, setContributions] = useState<ContributionItem[]>(INITIAL_CONTRIBUTIONS);
-  const [activeArenaTab, setActiveArenaTab] = useState<'lectures' | 'achievements' | 'leaderboard'>('lectures');
-  const [selectedTrackKey, setSelectedTrackKey] = useState<TrackKey>('python');
+  const [activeArenaTab, setActiveArenaTab] = useState<'lectures' | 'achievements' | 'leaderboard' | 'projects' | 'events'>('lectures');
+  const [selectedTrackKey, setSelectedTrackKey] = useState<string>('data-science');
   const [isMotifWarping, setIsMotifWarping] = useState<boolean>(false);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
@@ -141,50 +142,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Toggle video completed status & calculate track progress + unlock prerequisites
-  const toggleVideoCompleted = (videoId: string) => {
-    setTracks(prevTracks => {
-      const updatedTracks = prevTracks.map(track => {
-        const hasVideo = track.videos.some(v => v.id === videoId);
-        if (!hasVideo) return track;
-
-        const updatedVideos = track.videos.map(v => 
-          v.id === videoId ? { ...v, completed: !v.completed } : v
-        );
-        return { ...track, videos: updatedVideos };
-      });
-
-      // Calculate if Python is 100% complete
-      const pythonTrack = updatedTracks.find(t => t.key === 'python');
-      const pythonComplete = pythonTrack ? pythonTrack.videos.every(v => v.completed) : false;
-
-      // Calculate if ML is 100% complete
-      const mlTrack = updatedTracks.find(t => t.key === 'ml');
-      const mlComplete = mlTrack ? mlTrack.videos.every(v => v.completed) : false;
-
-      // Unlock ML if Python complete; Unlock CV if ML complete
-      const finalTracks = updatedTracks.map(t => {
-        if (t.key === 'ml') {
-          return { ...t, isLocked: !pythonComplete };
-        }
-        if (t.key === 'cv') {
-          return { ...t, isLocked: !mlComplete };
-        }
-        return t;
-      });
-
-      // Update badge unlock status
-      setBadges(prevBadges => prevBadges.map(b => {
-        if (b.trackKey === 'python' && pythonComplete) {
-          return { ...b, isUnlocked: true, earnedDate: 'Just Now', certificateUrl: 'AMORPHUS_CERT_PYTHON_25119011132.pdf' };
-        }
-        if (b.trackKey === 'ml' && mlComplete) {
-          return { ...b, isUnlocked: true, earnedDate: 'Just Now', certificateUrl: 'AMORPHUS_CERT_ML_25119011132.pdf' };
-        }
-        return b;
-      }));
-
-      return finalTracks;
-    });
+  const toggleLessonCompleted = (lessonId: string) => {
+    setCompletedLessons(prev => 
+      prev.includes(lessonId) 
+        ? prev.filter(id => id !== lessonId)
+        : [...prev, lessonId]
+    );
   };
 
   const addContribution = (item: Omit<ContributionItem, 'id' | 'submittedDate' | 'status'>) => {
@@ -246,7 +209,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedTrackKey,
         isMotifWarping,
         openMotifArena,
-        toggleVideoCompleted,
+        completedLessons,
+        toggleLessonCompleted,
         addContribution
       }}
     >
